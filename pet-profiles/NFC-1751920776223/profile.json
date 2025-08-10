@@ -1,0 +1,13 @@
+{
+  "id": "5f7794cb-0acd-452e-9d42-c1a2d88dd899",
+  "name": "Max",
+  "nfcTagId": "NFC-1751920776223",
+  "description": "Friendly Labrador mix",
+  "owner": {
+    "name": "John Doe",
+    "username": "johndoe",
+    "email": "john@example.com",
+    "phone": "+1555123456"
+  },
+  "createdAt": "2025-07-07T20:39:36.224Z"
+}
