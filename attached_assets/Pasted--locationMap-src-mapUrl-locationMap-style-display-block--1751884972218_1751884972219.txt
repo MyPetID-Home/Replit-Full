@@ -1,0 +1,146 @@
+
+            locationMap.src = mapUrl;
+            locationMap.style.display = 'block';
+            console.log('Map URL set to:', mapUrl);
+            break;
+        case 'project-info':
+            try {
+                const readmeResponse = await fetch('READMEFIRST.md');
+                if (readmeResponse.ok) {
+                    const readmeText = await readmeResponse.text();
+                    content.innerHTML = `<div>${readmeText.replace(/^\s*#+\s*/gm, '<h2>').replace(/\n/g, '<br>')}</div>`;
+                    pageTitle.textContent = 'Project Info';
+                } else {
+                    content.innerHTML = '<p>Failed to load project info.</p>';
+                }
+            } catch (error) {
+                console.error('Error fetching READMEFIRST.md:', error);
+                content.innerHTML = '<p>Error loading project info. Please try again later.</p>';
+            }
+            locationMap.style.display = 'none';
+            break;
+    }
+}
+
+async function submitReportLost() {
+    alert('Report feature is not available without a backend. Please contact the owner manually.');
+    navigate('home');
+}
+
+async function saveChanges() {
+    alert('Save feature is not available without a backend. Please update data manually via GitHub.');
+    navigate('home');
+}
+
+async function login() {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+
+    if (!email || !password) {
+        alert('Please enter both email and password.');
+        return;
+    }
+
+    try {
+        const cacheBust = new Date().getTime();
+        const usersResponse = await fetch(`/data/users.json?t=${cacheBust}`);
+        const users = usersResponse.ok ? await usersResponse.json() : [];
+        const user = users.find(u => u.email === email && u.password === password); // Placeholder; use hashing in production
+        if (user) {
+            isLoggedIn = true;
+            userData = user;
+            showLoggedInState();
+            navigate('account#view');
+        } else {
+            alert('Invalid credentials.');
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        alert('Failed to log in. Please try again later.');
+    }
+}
+
+async function register() {
+    const email = document.getElementById('reg-email').value;
+    const password = document.getElementById('reg-password').value;
+    const name = document.getElementById('reg-name').value;
+    const phone = document.getElementById('reg-phone').value;
+    const address = document.getElementById('reg-address').value;
+    const device = document.getElementById('reg-device').value;
+
+    if (!email || !password || !name || !phone || !address || !device) {
+        alert('All fields are required.');
+        return;
+    }
+
+    try {
+        const cacheBust = new Date().getTime();
+        const usersResponse = await fetch(`/data/users.json?t=${cacheBust}`);
+        const users = usersResponse.ok ? await usersResponse.json() : [];
+        if (users.find(u => u.email === email)) {
+            alert('Email already registered.');
+            return;
+        }
+
+        const newUser = {
+            _id: crypto.randomUUID(),
+            username: name,
+            password: password, // Placeholder; hash in production
+            email: email,
+            name: name,
+            phone: phone,
+            address: address,
+            device: device
+        };
+
+        users.push(newUser);
+        await fetch('/data/users.json', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(users)
+        });
+        alert('Registration successful. Please log in.');
+        navigate('account#login');
+    } catch (error) {
+        console.error('Registration error:', error);
+        alert('Failed to register. Please try again later.');
+    }
+}
+
+async function resetPassword() {
+    const email = document.getElementById('reset-email').value;
+    if (!email) {
+        alert('Please enter an email.');
+        return;
+    }
+
+    try {
+        const cacheBust = new Date().getTime();
+        const usersResponse = await fetch(`/data/users.json?t=${cacheBust}`);
+        const users = usersResponse.ok ? await usersResponse.json() : [];
+        if (users.find(u => u.email === email)) {
+            alert('Password reset link would be sent if backend were implemented. Contact support.');
+        } else {
+            alert('No account found with that email.');
+        }
+        navigate('account#login');
+    } catch (error) {
+        console.error('Reset password error:', error);
+        alert('Failed to process reset. Please try again later.');
+    }
+}
+
+async function logout() {
+    isLoggedIn = false;
+    userData = null;
+    showLoggedOutState();
+    await fetchData();
+    navigate('account#login');
+}
+
+window.addEventListener('hashchange', () => {
+    const page = window.location.hash.replace('#', '') || 'account';
+    navigate(page);
+});
+
+fetchData();

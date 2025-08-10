@@ -1,0 +1,133 @@
+
+            locationMap.style.display = 'none';
+            break;
+        case 'donation':
+            content.innerHTML = `
+                <h2>Socials</h2>
+                <strong>Throw me a Bone!</strong>
+                <p style="text-align: center;">All proceeds cover food, supplies, and medical costs as needed to ensure ${dogData.name} receives proper nutrition and care.</p>
+                <input type="text" id="donation-amount" placeholder="$ Custom Amount">
+                <button onclick="alert('Redirect to PayPal (not implemented)')">Woof!</button>
+                <div style="display: flex; justify-content: center; gap: 16px;">
+                    <div style="width: 50px; height: 50px; border-radius: 50%; background-color: gray;"></div>
+                    <div style="width: 50px; height: 50px; border-radius: 50%; background-color: gray;"></div>
+                </div>
+            `;
+            locationMap.style.display = 'none';
+            break;
+        case 'gallery':
+            content.innerHTML = `
+                <h2>Gallery</h2>
+                ${dogData.gallery.map(item => `
+                    <p>${item.type}: ${item.description}</p>
+                    ${item.type === 'Photo' ? `<img src="${item.url}" style="max-width: 100%; height: auto;">` : `<video src="${item.url}" controls style="max-width: 100%; height: auto;"></video>`}
+                `).join('')}
+                <button class="text-button" onclick="navigate('home')">Back to Home: Return to the main page</button>
+            `;
+            locationMap.style.display = 'none';
+            break;
+        case 'report-lost':
+            content.innerHTML = `
+                <h2>Report Lost</h2>
+                <p style="text-align: center;">Found Me? Thank You! Please Fill Out This Form to Help Me Get Back Home!</p>
+                <input type="text" id="finder-name" placeholder="Your Name">
+                <input type="text" id="finder-contact" placeholder="Your Contact Info">
+                <input type="text" id="location" placeholder="Where You Found Me">
+                <button onclick="submitReportLost()">Submit</button>
+                <div style="display: flex; justify-content: center; gap: 16px;">
+                    <div style="width: 50px; height: 50px; border-radius: 50%; background-color: gray;"></div>
+                    <div style="width: 50px; height: 50px; border-radius: 50%; background-color: gray;"></div>
+                </div>
+            `;
+            locationMap.style.display = 'none';
+            break;
+        case 'account':
+            const subPage = window.location.hash.split('#')[1] || (isLoggedIn ? 'view' : 'login');
+            if (isLoggedIn && subPage === 'view') {
+                content.innerHTML = `
+                    <h2>Account</h2>
+                    <strong>User Information</strong>
+                    <p>Name: ${userData.name || 'Not set'}</p>
+                    <p>Email: ${userData.email}</p>
+                    <p>Phone: ${userData.phone || 'Not set'}</p>
+                    <p>Address: ${userData.address || 'Not set'}</p>
+                    <strong>Dog Information</strong>
+                    <p>Name: ${dogData.name}</p>
+                    <p>Description: ${dogData.description}</p>
+                    <p>Age: ${dogData.age}</p>
+                    <p>Weight: ${dogData.weight}</p>
+                    <p>Coat: ${dogData.coat}</p>
+                    <p>Sex: ${dogData.sex}</p>
+                    <p>Eye Color: ${dogData.eyeColor}</p>
+                    <p>Neutered: ${dogData.neutered}</p>
+                    <p>Breed: ${dogData.breed}</p>
+                    <p>Personality: ${dogData.personality}</p>
+                    <p>Loves: ${dogData.loves}</p>
+                    <p>Routine: ${dogData.routine}</p>
+                    <p>Training: ${dogData.training}</p>
+                    <p>Quirks: ${dogData.quirks}</p>
+                    <button onclick="navigate('logout')">Logout</button>
+                `;
+            } else if (!isLoggedIn) {
+                switch (subPage) {
+                    case 'login':
+                        content.innerHTML = `
+                            <h2>Account - Login</h2>
+                            <input type="text" id="email" placeholder="Email">
+                            <input type="password" id="password" placeholder="Password">
+                            <button onclick="login()">Login</button>
+                            <button class="text-button" onclick="navigate('account#register')">Register</button>
+                            <button class="text-button" onclick="navigate('account#reset-password')">Forgot Password?</button>
+                        `;
+                        break;
+                    case 'register':
+                        content.innerHTML = `
+                            <h2>Account - Register</h2>
+                            <input type="text" id="reg-email" placeholder="Email">
+                            <input type="password" id="reg-password" placeholder="Password">
+                            <input type="text" id="reg-name" placeholder="Name">
+                            <input type="text" id="reg-phone" placeholder="Phone">
+                            <input type="text" id="reg-address" placeholder="Address">
+                            <input type="text" id="reg-device" placeholder="Device Name (e.g., Dad's Phone)">
+                            <button onclick="register()">Register</button>
+                            <button class="text-button" onclick="navigate('account#login')">Back to Login</button>
+                        `;
+                        break;
+                    case 'reset-password':
+                        content.innerHTML = `
+                            <h2>Account - Reset Password</h2>
+                            <input type="text" id="reset-email" placeholder="Enter your email">
+                            <button onclick="resetPassword()">Send Reset Link</button>
+                            <button class="text-button" onclick="navigate('account#login')">Back to Login</button>
+                        `;
+                        break;
+                    default:
+                        navigate('account#login');
+                }
+            }
+            locationMap.style.display = 'none';
+            break;
+        case 'logout':
+            logout();
+            break;
+        case 'location':
+            const recentLocations = locationsData.filter(loc => {
+                const locTime = new Date(loc.timestamp);
+                const now = new Date();
+                const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+                return loc.active && locTime >= twoHoursAgo && loc.latitude && loc.longitude && !isNaN(loc.latitude) && !isNaN(loc.longitude);
+            });
+            const mapUrl = recentLocations.length > 0
+                ? `https://maps.google.com/maps?q=${recentLocations[0].latitude},${recentLocations[0].longitude}&z=15&output=embed`
+                : `https://maps.google.com/maps?q=44.097371370963934,-70.16535158888728&z=15&output=embed`;
+            content.innerHTML = `
+                <h2>Location History</h2>
+                <h3>Last Scanned Locations (Last 2 Hours)</h3>
+                ${recentLocations.length > 0
+                    ? recentLocations.map(loc => `
+                        <p>Device: ${loc.deviceName || 'Unknown'}</p>
+                        <p>Time: ${new Date(loc.timestamp).toLocaleString()}</p>
+                        <p>Latitude: ${loc.latitude}, Longitude: ${loc.longitude}</p>
+                    `).join('')
+                    : '<p>No recent locations available.</p>'}
+            `;
