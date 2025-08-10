@@ -1,0 +1,13 @@
+[
+  {
+    "id": "682776ca4ca6684a976c5f90",
+    "userId": "682772c14ca6684a976c5f8d",
+    "deviceName": "Dad's Phone",
+    "deviceId": "dad-phone-123",
+    "deviceType": "Android",
+    "lastSeen": "2025-01-15T14:30:00.000Z",
+    "isActive": true,
+    "createdAt": "2025-01-15T10:00:00.000Z",
+    "updatedAt": "2025-01-15T14:30:00.000Z"
+  }
+]

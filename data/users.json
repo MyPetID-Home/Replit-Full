@@ -1,0 +1,59 @@
+[
+  {
+    "id": "cak3d-admin-001",
+    "username": "CAK3D ADMIN",
+    "email": "admin@mypetid.com",
+    "name": "CAK3D Admin",
+    "isAdmin": true,
+    "isActive": true,
+    "emailVerified": true,
+    "patreonStatus": "Premium",
+    "passwordHash": "$2b$10$2uCH6OhbECEYfmIj6.ntGeJi2UE5nitoSW.cFt7erP8Jd8yW4lKMW",
+    "createdAt": "2025-01-15T09:00:00.000Z",
+    "updatedAt": "2025-01-15T09:00:00.000Z"
+  },
+  {
+    "id": "cak3d-user-001",
+    "username": "CAK3D",
+    "email": "real_cak3d@yahoo.com",
+    "name": "CAK3D",
+    "isAdmin": false,
+    "isActive": true,
+    "emailVerified": true,
+    "patreonStatus": "Premium",
+    "passwordHash": "$2b$10$2uCH6OhbECEYfmIj6.ntGeJi2UE5nitoSW.cFt7erP8Jd8yW4lKMW",
+    "createdAt": "2025-01-15T09:00:00.000Z",
+    "updatedAt": "2025-07-11T02:06:15.189Z",
+    "phone": ""
+  },
+  {
+    "id": "682772c14ca6684a976c5f8d",
+    "username": "johndoe",
+    "email": "john@example.com",
+    "name": "John Doe",
+    "phone": "+1555123456",
+    "isAdmin": false,
+    "isActive": true,
+    "emailVerified": true,
+    "patreonStatus": "Supporter",
+    "patreonEmail": "john@example.com",
+    "patreonId": "patreon_12345",
+    "passwordHash": "$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi",
+    "createdAt": "2025-01-15T10:00:00.000Z",
+    "updatedAt": "2025-01-15T10:00:00.000Z"
+  },
+  {
+    "id": "test-user-123",
+    "username": "sarahj",
+    "email": "sarah@example.com",
+    "name": "Sarah Johnson",
+    "phone": "+1555987654",
+    "isAdmin": false,
+    "isActive": true,
+    "emailVerified": true,
+    "patreonStatus": "None",
+    "passwordHash": "$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi",
+    "createdAt": "2025-01-15T11:00:00.000Z",
+    "updatedAt": "2025-01-15T11:00:00.000Z"
+  }
+]

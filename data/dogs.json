@@ -1,0 +1,50 @@
+[
+  {
+    "id": "5f7794cb-0acd-452e-9d42-c1a2d88dd899",
+    "name": "Max",
+    "nfcTagId": "NFC-1751920776223",
+    "description": "Friendly Labrador mix",
+    "age": "2 years",
+    "breed": "Labrador Mix",
+    "weight": "55 lbs",
+    "sex": "Male",
+    "coat": "Short",
+    "eyeColor": "Brown",
+    "neutered": "Yes",
+    "personality": "Energetic and friendly",
+    "ownerId": "c89dd780-7522-4984-b8d2-d29e4d40abd9",
+    "ownerName": "John Doe",
+    "ownerEmail": "john@example.com",
+    "ownerPhone": "+1555123456",
+    "isActive": true,
+    "status": "Active",
+    "createdAt": "2025-07-07T20:39:36.224Z",
+    "updatedAt": "2025-07-07T20:39:36.224Z"
+  },
+  {
+    "id": "a0e6f996-0bb3-46fe-8b0c-76cd0dfec1c4",
+    "name": "Bella",
+    "nfcTagId": "NFC-1751947636393",
+    "description": "Sweet rescue dog",
+    "age": "4 years",
+    "breed": "Mixed Breed",
+    "weight": "45 lbs",
+    "photoUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD...",
+    "medicalFiles": [
+      {
+        "name": "vaccination-record.pdf",
+        "type": "application/pdf",
+        "size": 512000,
+        "data": "data:application/pdf;base64,JVBERi0xLjQKJeLjz9MKMSAwIG9iai..."
+      }
+    ],
+    "ownerId": "test-owner-123",
+    "ownerName": "Jane Smith",
+    "ownerEmail": "jane@example.com",
+    "ownerPhone": "+1555987654",
+    "isActive": true,
+    "status": "Active",
+    "createdAt": "2025-07-08T04:07:16.393Z",
+    "updatedAt": "2025-07-08T04:07:16.393Z"
+  }
+]

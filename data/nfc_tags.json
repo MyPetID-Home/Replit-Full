@@ -1,0 +1,13 @@
+[
+  {
+    "id": "nfc_1",
+    "tagId": "04:6C:E3:0F:BE:2A:81",
+    "petId": "682774024ca6684a976c5f8e",
+    "userId": "682772c14ca6684a976c5f8d",
+    "isActive": true,
+    "lastScanned": "2025-01-15T14:30:00.000Z",
+    "scanCount": 25,
+    "createdAt": "2025-01-15T10:00:00.000Z",
+    "updatedAt": "2025-01-15T14:30:00.000Z"
+  }
+]
