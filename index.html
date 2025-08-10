@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyPetID - Smart Pet Identification System</title>
+    <meta name="description" content="Smart pet identification system with NFC-enabled tags and digital profiles to help keep pets safe.">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐕</text></svg>">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="container">
+                <div class="header-content">
+                    <div class="logo">
+                        <span class="logo-icon">🐕</span>
+                        <span class="logo-text">MyPetID</span>
+                    </div>
+                    <nav class="nav" id="nav">
+                        <a href="#home" class="nav-link active">Home</a>
+                        <a href="#features" class="nav-link">Features</a>
+                        <a href="#login" class="nav-link" id="loginLink">Login</a>
+                        <a href="#register" class="nav-link" id="registerLink">Register</a>
+                        <a href="#dashboard" class="nav-link hidden" id="dashboardLink">Dashboard</a>
+                        <button class="btn btn-sm" id="logoutBtn" style="display: none;">Logout</button>
+                    </nav>
+                    <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Home Page -->
+            <section id="home" class="page active">
+                <div class="hero">
+                    <div class="container">
+                        <div class="hero-content">
+                            <h1 class="hero-title">Smart Pet Identification System</h1>
+                            <p class="hero-subtitle">Keep your pets safe with NFC-enabled tags and digital profiles. Anyone who finds your pet can instantly access their information and contact you.</p>
+                            <div class="hero-buttons">
+                                <a href="#register" class="btn btn-primary">Get Started</a>
+                                <a href="#features" class="btn btn-secondary">Learn More</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="container">
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">📱</div>
+                            <h3>NFC Technology</h3>
+                            <p>Simply tap your phone on the NFC tag to access your pet's profile instantly.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🔒</div>
+                            <h3>Secure Profiles</h3>
+                            <p>Your pet's information is secure and only accessible to those who find them.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🎯</div>
+                            <h3>Quick Contact</h3>
+                            <p>Instant access to your contact information when your pet is found.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Features Page -->
+            <section id="features" class="page">
+                <div class="container">
+                    <h2 class="section-title">Features</h2>
+                    <div class="features-detailed">
+                        <div class="feature-detail">
+                            <h3>🏷️ NFC-Enabled Pet Tags</h3>
+                            <p>Each pet gets a unique NFC tag that can be scanned by any smartphone to access their profile.</p>
+                        </div>
+                        <div class="feature-detail">
+                            <h3>📋 Comprehensive Pet Profiles</h3>
+                            <p>Store detailed information about your pet including medical history, personality traits, and emergency contacts.</p>
+                        </div>
+                        <div class="feature-detail">
+                            <h3>🎯 Location Tracking</h3>
+                            <p>Track where your pet was last seen and get notifications when they're found.</p>
+                        </div>
+                        <div class="feature-detail">
+                            <h3>💎 Patreon Integration</h3>
+                            <p>Premium features available for Patreon supporters including multiple pets and advanced analytics.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Login Page -->
+            <section id="login" class="page">
+                <div class="container">
+                    <div class="auth-container">
+                        <h2>Login to MyPetID</h2>
+                        <form id="loginForm" class="auth-form">
+                            <div class="form-group">
+                                <label for="loginEmail">Email</label>
+                                <input type="email" id="loginEmail" name="email" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="loginPassword">Password</label>
+                                <input type="password" id="loginPassword" name="password" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-full">Login</button>
+                        </form>
+                        <div class="auth-links">
+                            <a href="#register">Don't have an account? Register here</a>
+                            <a href="#forgot-password">Forgot password?</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Register Page -->
+            <section id="register" class="page">
+                <div class="container">
+                    <div class="auth-container">
+                        <h2>Register for MyPetID</h2>
+                        <div class="patreon-notice">
+                            <p>🎭 <strong>Patreon Required:</strong> A Patreon subscription is required to create an account. This helps us maintain the service and provide premium features.</p>
+                            <a href="https://www.patreon.com/mypetid" target="_blank" class="btn btn-patreon">Support on Patreon</a>
+                        </div>
+                        <form id="registerForm" class="auth-form">
+                            <div class="form-group">
+                                <label for="registerUsername">Username</label>
+                                <input type="text" id="registerUsername" name="username" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="registerEmail">Email</label>
+                                <input type="email" id="registerEmail" name="email" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="registerPassword">Password</label>
+                                <input type="password" id="registerPassword" name="password" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="registerName">Full Name</label>
+                                <input type="text" id="registerName" name="name">
+                            </div>
+                            <div class="form-group">
+                                <label for="registerPhone">Phone Number</label>
+                                <input type="tel" id="registerPhone" name="phone">
+                            </div>
+                            <div class="form-group">
+                                <label for="patreonId">Patreon ID</label>
+                                <input type="text" id="patreonId" name="patreonId" placeholder="Your Patreon user ID" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="profilePicture">Profile Picture</label>
+                                <input type="file" id="profilePicture" name="profilePicture" accept="image/*">
+                                <small>Upload a profile picture (optional)</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-full" id="registerBtn">Register</button>
+                        </form>
+                        
+                        <!-- Email Verification Section -->
+                        <div id="verificationSection" class="verification-section" style="display: none;">
+                            <div class="verification-success">
+                                <h3>✅ Account Created Successfully!</h3>
+                                <p>We've sent a 6-digit verification code to your email address.</p>
+                                <p><strong>Please check your inbox and enter the code below to verify your account.</strong></p>
+                                <p><em>This process may take up to 5 minutes. You can log in with your credentials, but your account will show as unverified until you complete this step.</em></p>
+                            </div>
+                            
+                            <div class="verification-form">
+                                <div class="form-group">
+                                    <label for="verificationCode">Verification Code</label>
+                                    <input type="text" id="verificationCode" name="verificationCode" placeholder="Enter 6-digit code" maxlength="6" required>
+                                </div>
+                                <button type="button" id="verifyBtn" class="btn btn-primary btn-full">Verify Account</button>
+                                <button type="button" id="resendCodeBtn" class="btn btn-secondary btn-full">Resend Code</button>
+                            </div>
+                            
+                            <div class="verification-links">
+                                <a href="#login">Back to Login</a>
+                            </div>
+                        </div>
+                        <div class="auth-links">
+                            <a href="#login">Already have an account? Login here</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Email Verification Page -->
+            <section id="verify-email" class="page">
+                <div class="container">
+                    <div class="auth-container">
+                        <h2>Verify Your Email</h2>
+                        <p>Please enter the 6-digit verification code sent to your email address.</p>
+                        <p><em>This process may take up to 5 minutes.</em></p>
+                        
+                        <div class="verification-form">
+                            <div class="form-group">
+                                <label for="verifyEmailCode">Verification Code</label>
+                                <input type="text" id="verifyEmailCode" name="verifyEmailCode" placeholder="Enter 6-digit code" maxlength="6" required>
+                            </div>
+                            <button type="button" id="verifyEmailBtn" class="btn btn-primary btn-full">Verify Email</button>
+                            <button type="button" id="resendEmailBtn" class="btn btn-secondary btn-full">Resend Code</button>
+                        </div>
+                        
+                        <div class="auth-links">
+                            <a href="#dashboard">Back to Dashboard</a>
+                            <a href="#" onclick="handleLogout()">Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dashboard Page -->
+            <section id="dashboard" class="page">
+                <div class="container">
+                    <div class="dashboard-header">
+                        <h2>Welcome back, <span id="userNameDisplay">User</span>! 
+                            <span id="verificationStatus" class="verification-badge" style="display: none;">
+                                <span id="verifiedIcon" class="verified-icon">✅ Verified</span>
+                                <span id="unverifiedIcon" class="unverified-icon">⚠️ Unverified</span>
+                            </span>
+                        </h2>
+                        
+                        <!-- Verification Alert for Unverified Users -->
+                        <div id="verificationAlert" class="verification-alert" style="display: none;">
+                            <div class="alert-content">
+                                <h3>⚠️ Email Verification Required</h3>
+                                <p>Your email address is not verified. Please verify your email to access all features.</p>
+                                <button type="button" id="verifyNowBtn" class="btn btn-primary">Verify Email Now</button>
+                                <button type="button" id="resendVerificationBtn" class="btn btn-secondary">Resend Code</button>
+                            </div>
+                        </div>
+                        <div class="dashboard-stats">
+                            <div class="stat-card">
+                                <div class="stat-number" id="petCount">0</div>
+                                <div class="stat-label">Pets</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number" id="profileViews">0</div>
+                                <div class="stat-label">Profile Views</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-content">
+                        <div class="dashboard-section">
+                            <div class="section-header">
+                                <h3>Your Pets</h3>
+                                <button class="btn btn-primary" id="addPetBtn">Add New Pet</button>
+                            </div>
+                            <div class="pets-grid" id="petsGrid">
+                                <!-- Pets will be loaded here -->
+                            </div>
+                        </div>
+
+                        <div class="dashboard-section">
+                            <h3>Recent Activity</h3>
+                            <div class="activity-list" id="activityList">
+                                <!-- Activity will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Pet Profile Page -->
+            <section id="pet-profile" class="page">
+                <div class="container">
+                    <div class="pet-profile-container">
+                        <div class="pet-header">
+                            <div class="pet-photo-gallery">
+                                <img id="petPhoto" src="" alt="Pet Photo" class="pet-photo main-photo">
+                                <div class="photo-thumbnails" id="photoThumbnails">
+                                    <!-- Additional photos will be loaded here -->
+                                </div>
+                            </div>
+                            <div class="pet-info">
+                                <h2 id="petName">Pet Name</h2>
+                                <p id="petDescription">Pet Description</p>
+                                <div class="pet-details">
+                                    <span class="detail-item">Age: <span id="petAge">Unknown</span></span>
+                                    <span class="detail-item">Breed: <span id="petBreed">Unknown</span></span>
+                                    <span class="detail-item">Weight: <span id="petWeight">Unknown</span></span>
+                                    <span class="detail-item">Sex: <span id="petSex">Unknown</span></span>
+                                </div>
+                                <div class="pet-status">
+                                    <span class="status-badge" id="petStatus">Status: Safe</span>
+                                    <span class="last-seen" id="lastSeen">Last seen: Never</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pet-sections">
+                            <div class="pet-section">
+                                <h3>🏥 Medical Information</h3>
+                                <div id="petMedicalInfo" class="section-content">
+                                    <p>No medical information available.</p>
+                                </div>
+                                <div id="petMedicalDocuments" class="medical-documents">
+                                    <!-- Medical documents will be loaded here -->
+                                </div>
+                            </div>
+
+                            <div class="pet-section">
+                                <h3>❤️ Personality & About Me</h3>
+                                <div id="petPersonality" class="section-content">
+                                    <p>No personality information available.</p>
+                                </div>
+                            </div>
+
+                            <div class="pet-section">
+                                <h3>📍 Last Known Location</h3>
+                                <div id="petLastLocation" class="section-content">
+                                    <p>No location data available.</p>
+                                </div>
+                                <div id="locationMap" class="location-map">
+                                    <!-- Location map will be loaded here -->
+                                </div>
+                            </div>
+
+                            <div class="pet-section">
+                                <h3>📞 Emergency Contact</h3>
+                                <div id="petEmergencyContact" class="section-content">
+                                    <div class="contact-info">
+                                        <p><strong>Owner:</strong> <span id="ownerName">Unknown</span></p>
+                                        <p><strong>Phone:</strong> <span id="ownerPhone">Not provided</span></p>
+                                        <p><strong>Email:</strong> <span id="ownerEmail">Not provided</span></p>
+                                    </div>
+                                    <div class="contact-actions">
+                                        <button class="btn btn-primary" id="contactOwnerBtn">Contact Owner</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pet-section">
+                                <h3>🔗 Social Links</h3>
+                                <div id="petSocialLinks" class="section-content">
+                                    <p>No social links available.</p>
+                                </div>
+                            </div>
+
+                            <div class="pet-section">
+                                <h3>💝 Support & Donations</h3>
+                                <div id="petDonations" class="section-content">
+                                    <p>No donation links available.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pet-actions">
+                            <button class="btn btn-success" id="reportFoundBtn">Report Found</button>
+                            <button class="btn btn-danger" id="reportLostBtn">Report Lost</button>
+                            <button class="btn btn-secondary" id="shareProfileBtn">Share Profile</button>
+                            <button class="btn btn-info" id="viewLocationBtn">View Location</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Pet Editor Modal -->
+            <div id="petEditorModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 id="petEditorTitle">Add New Pet</h3>
+                        <button class="modal-close" id="closePetEditor">&times;</button>
+                    </div>
+                    <form id="petEditorForm" class="pet-editor-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="petNameInput">Pet Name*</label>
+                                <input type="text" id="petNameInput" name="name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="petNfcTagInput">NFC Tag ID</label>
+                                <input type="text" id="petNfcTagInput" name="nfcTagId" placeholder="e.g., ABCD1234">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="petDescriptionInput">Description</label>
+                            <textarea id="petDescriptionInput" name="description" rows="3"></textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="petAgeInput">Age</label>
+                                <input type="text" id="petAgeInput" name="age" placeholder="e.g., 3 years">
+                            </div>
+                            <div class="form-group">
+                                <label for="petBreedInput">Breed</label>
+                                <input type="text" id="petBreedInput" name="breed">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="petWeightInput">Weight</label>
+                                <input type="text" id="petWeightInput" name="weight" placeholder="e.g., 25 lbs">
+                            </div>
+                            <div class="form-group">
+                                <label for="petSexInput">Sex</label>
+                                <select id="petSexInput" name="sex">
+                                    <option value="">Select...</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="petPersonalityInput">Personality</label>
+                            <textarea id="petPersonalityInput" name="personality" rows="3" placeholder="Describe your pet's personality traits..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="petMedicalInput">Medical Information</label>
+                            <textarea id="petMedicalInput" name="medicalInfo" rows="3" placeholder="Any medical conditions, medications, or special needs..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="petMedicalFileInput">Medical Documents</label>
+                            <input type="file" id="petMedicalFileInput" name="medicalFile" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png" multiple>
+                            <small class="form-text text-muted">
+                                ⚠️ Please remove any personal information (SSN, credit card numbers, etc.) before uploading medical documents.
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="petPhotoInput">Pet Photos (Gallery)</label>
+                            <input type="file" id="petPhotoInput" name="photoFile" accept="image/*" multiple>
+                            <small class="form-text text-muted">Upload multiple photos for your pet's gallery</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="petSocialLinks">Social Links</label>
+                            <input type="text" id="petSocialLinks" name="socialLinks" placeholder="Instagram, Facebook, TikTok, YouTube links (comma-separated)">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="petDonationLink">Donation Link</label>
+                            <input type="text" id="petDonationLink" name="donationLink" placeholder="PayPal, Venmo, or other donation links">
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="cancelPetEditor">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Pet</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+
+        <!-- Loading Spinner -->
+        <div id="loadingSpinner" class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Processing...</p>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toastContainer" class="toast-container"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
