@@ -1,0 +1,261 @@
+name: Patreon Verification
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Run every 6 hours
+  workflow_dispatch:
+  
+env:
+  MONGODB_URI: ${{ secrets.MONGODB_URI }}
+  PATREON_CLIENT_ID: ${{ secrets.PATREON_CLIENT_ID }}
+  PATREON_CLIENT_SECRET: ${{ secrets.PATREON_CLIENT_SECRET }}
+
+jobs:
+  verify-patreon-supporters:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install axios
+
+      - name: Process Patreon verification queue
+        run: |
+          node -e '
+            const fs = require("fs");
+            const axios = require("axios");
+            
+            const patreonClientId = process.env.PATREON_CLIENT_ID;
+            const patreonClientSecret = process.env.PATREON_CLIENT_SECRET;
+            
+            async function verifyPatreonSupport(patreonId) {
+              try {
+                // Get Patreon access token
+                const tokenResponse = await axios.post("https://www.patreon.com/api/oauth2/token", {
+                  grant_type: "client_credentials",
+                  client_id: patreonClientId,
+                  client_secret: patreonClientSecret
+                });
+                
+                const accessToken = tokenResponse.data.access_token;
+                
+                // Get user data from Patreon
+                const userResponse = await axios.get(`https://www.patreon.com/api/oauth2/v2/user/${patreonId}`, {
+                  headers: {
+                    Authorization: `Bearer ${accessToken}`
+                  },
+                  params: {
+                    include: "pledges"
+                  }
+                });
+                
+                const userData = userResponse.data;
+                const pledges = userData.included?.filter(item => item.type === "pledge") || [];
+                
+                return {
+                  verified: pledges.length > 0,
+                  tier: pledges.length > 0 ? "supporter" : "none",
+                  pledgeAmount: pledges.length > 0 ? pledges[0].attributes.amount_cents : 0
+                };
+                
+              } catch (error) {
+                console.error("Patreon API error:", error.message);
+                return {
+                  verified: false,
+                  tier: "none",
+                  pledgeAmount: 0,
+                  error: error.message
+                };
+              }
+            }
+            
+            async function processVerificationQueue() {
+              // Load verification queue
+              let verificationQueue = [];
+              if (fs.existsSync("data/patreon_verification_queue.json")) {
+                try {
+                  verificationQueue = JSON.parse(fs.readFileSync("data/patreon_verification_queue.json", "utf8"));
+                } catch (error) {
+                  console.error("Error reading verification queue:", error);
+                  verificationQueue = [];
+                }
+              }
+              
+              // Load users
+              let users = [];
+              if (fs.existsSync("data/users.json")) {
+                try {
+                  users = JSON.parse(fs.readFileSync("data/users.json", "utf8"));
+                } catch (error) {
+                  console.error("Error reading users.json:", error);
+                  users = [];
+                }
+              }
+              
+              const pendingVerifications = verificationQueue.filter(v => v.status === "pending");
+              console.log(`Processing ${pendingVerifications.length} pending verification requests`);
+              
+              for (const verification of pendingVerifications) {
+                try {
+                  console.log(`Verifying Patreon support for: ${verification.username}`);
+                  
+                  const patreonResult = await verifyPatreonSupport(verification.patreonId);
+                  
+                  // Update user with verification results
+                  const userIndex = users.findIndex(u => u.username === verification.username);
+                  if (userIndex !== -1) {
+                    users[userIndex] = {
+                      ...users[userIndex],
+                      patreonVerified: patreonResult.verified,
+                      patreonTier: patreonResult.tier,
+                      patreonPledgeAmount: patreonResult.pledgeAmount,
+                      patreonVerificationDate: new Date().toISOString(),
+                      updatedAt: new Date().toISOString()
+                    };
+                  }
+                  
+                  // Update verification request status
+                  const verificationIndex = verificationQueue.findIndex(v => 
+                    v.username === verification.username && 
+                    v.patreonId === verification.patreonId && 
+                    v.status === "pending"
+                  );
+                  
+                  if (verificationIndex !== -1) {
+                    verificationQueue[verificationIndex] = {
+                      ...verificationQueue[verificationIndex],
+                      status: patreonResult.verified ? "verified" : "failed",
+                      verificationResult: patreonResult,
+                      processedAt: new Date().toISOString()
+                    };
+                  }
+                  
+                  console.log(`Verification completed for ${verification.username}: ${patreonResult.verified ? "VERIFIED" : "FAILED"}`);
+                  
+                } catch (error) {
+                  console.error(`Error processing verification for ${verification.username}:`, error);
+                  
+                  // Mark as failed
+                  const verificationIndex = verificationQueue.findIndex(v => 
+                    v.username === verification.username && 
+                    v.patreonId === verification.patreonId && 
+                    v.status === "pending"
+                  );
+                  
+                  if (verificationIndex !== -1) {
+                    verificationQueue[verificationIndex] = {
+                      ...verificationQueue[verificationIndex],
+                      status: "failed",
+                      error: error.message,
+                      processedAt: new Date().toISOString()
+                    };
+                  }
+                }
+              }
+              
+              // Clean up old verification requests (older than 30 days)
+              const thirtyDaysAgo = new Date();
+              thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+              
+              verificationQueue = verificationQueue.filter(v => {
+                if (!v.processedAt) return true;
+                return new Date(v.processedAt) > thirtyDaysAgo;
+              });
+              
+              // Save updated files
+              fs.writeFileSync("data/users.json", JSON.stringify(users, null, 2));
+              fs.writeFileSync("data/patreon_verification_queue.json", JSON.stringify(verificationQueue, null, 2));
+              
+              console.log("Verification processing completed");
+            }
+            
+            processVerificationQueue();
+          '
+
+      - name: Update user statistics
+        run: |
+          node -e '
+            const fs = require("fs");
+            
+            // Load users
+            let users = [];
+            if (fs.existsSync("data/users.json")) {
+              try {
+                users = JSON.parse(fs.readFileSync("data/users.json", "utf8"));
+              } catch (error) {
+                users = [];
+              }
+            }
+            
+            // Get user statistics
+            const totalUsers = users.length;
+            const activeUsers = users.filter(u => u.isActive).length;
+            const patreonUsers = users.filter(u => u.patreonVerified).length;
+            const verifiedUsers = users.filter(u => u.patreonVerified).length;
+            
+            // Get verification statistics by tier
+            const tierCounts = {};
+            users.filter(u => u.patreonVerified).forEach(user => {
+              const tier = user.patreonTier || "basic";
+              tierCounts[tier] = (tierCounts[tier] || 0) + 1;
+            });
+            
+            // Get registrations by month
+            const registrationsByMonth = {};
+            users.forEach(user => {
+              const month = new Date(user.createdAt).toISOString().slice(0, 7);
+              registrationsByMonth[month] = (registrationsByMonth[month] || 0) + 1;
+            });
+            
+            const stats = {
+              totalUsers,
+              activeUsers,
+              patreonUsers,
+              verifiedUsers,
+              tierCounts,
+              registrationsByMonth,
+              lastUpdated: new Date().toISOString()
+            };
+            
+            // Create data directory if it does not exist
+            if (!fs.existsSync("data")) {
+              fs.mkdirSync("data", { recursive: true });
+            }
+            
+            fs.writeFileSync("data/user_stats.json", JSON.stringify(stats, null, 2));
+            
+            console.log("User statistics updated:");
+            console.log(JSON.stringify(stats, null, 2));
+          '
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --cached --quiet || git commit -m "Update user statistics after Patreon verification"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sync to MongoDB
+        run: |
+          npm install mongodb
+          node push-to-mongo.js
+        env:
+          MONGO_URI: ${{ secrets.MONGODB_URI }}
+
+      - name: Summary
+        run: |
+          echo "Patreon verification process completed successfully"
+          echo "Updated user statistics and verification status"
+          echo "JSON files updated and synced to MongoDB"

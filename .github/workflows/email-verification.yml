@@ -1,0 +1,200 @@
+name: Email Verification
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  send-verification-email:
+    if: contains(github.event.issue.title, 'Send Verification Email')
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: npm install mongodb nodemailer
+    
+    - name: Send verification email
+      env:
+        MONGO_URI: ${{ secrets.MONGO_URI }}
+        YAHOO_APP_PASSWORD: ${{ secrets.YAHOO_APP_PASSWORD }}
+        ISSUE_BODY: ${{ github.event.issue.body }}
+      run: |
+        node -e "
+        const { MongoClient } = require('mongodb');
+        const nodemailer = require('nodemailer');
+        const fs = require('fs');
+        
+        async function sendVerificationEmail() {
+          const issueBody = process.env.ISSUE_BODY;
+          const data = JSON.parse(issueBody);
+          
+          const client = new MongoClient(process.env.MONGO_URI);
+          await client.connect();
+          const db = client.db('mypetid');
+          
+          // Generate 6-digit verification code
+          const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+          
+          // Store verification code in database
+          await db.collection('email_verification').insertOne({
+            email: data.email,
+            username: data.username,
+            code: verificationCode,
+            createdAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString() // 30 minutes
+          });
+          
+          // Send email via Yahoo SMTP
+          const transporter = nodemailer.createTransporter({
+            host: 'smtp.mail.yahoo.com',
+            port: 587,
+            secure: false, // Use TLS
+            auth: {
+              user: 'MyPetID@yahoo.com',
+              pass: process.env.YAHOO_APP_PASSWORD
+            }
+          });
+          
+          const mailOptions = {
+            from: 'MyPetID@yahoo.com',
+            to: data.email,
+            subject: 'MyPetID - Email Verification Code',
+            html: \`
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; text-align: center;">
+                  <h1 style="margin: 0; font-size: 28px;">🐾 MyPetID</h1>
+                  <p style="margin: 10px 0 0 0; font-size: 16px;">Smart Pet Identification System</p>
+                </div>
+                
+                <div style="padding: 30px; background: #f8f9fa; border-radius: 10px; margin-top: 20px;">
+                  <h2 style="color: #333; margin-top: 0;">Welcome to MyPetID, \${data.username}!</h2>
+                  <p style="color: #666; font-size: 16px; line-height: 1.6;">
+                    Thank you for creating your MyPetID account. To complete your registration and start protecting your furry friends, please verify your email address.
+                  </p>
+                  
+                  <div style="background: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+                    <p style="color: #333; font-size: 14px; margin: 0 0 10px 0;">Your verification code is:</p>
+                    <div style="font-size: 32px; font-weight: bold; color: #667eea; letter-spacing: 8px; font-family: 'Courier New', monospace;">
+                      \${verificationCode}
+                    </div>
+                  </div>
+                  
+                  <p style="color: #666; font-size: 14px;">
+                    <strong>⏰ This code will expire in 30 minutes.</strong><br>
+                    If you didn't create a MyPetID account, please ignore this email.
+                  </p>
+                  
+                  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                    <p style="color: #888; font-size: 12px; margin: 0;">
+                      Best regards,<br>
+                      The MyPetID Team<br>
+                      <a href="https://patreon.com/MyPetID" style="color: #667eea;">Support us on Patreon</a>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            \`
+          };
+          
+          await transporter.sendMail(mailOptions);
+          console.log('Verification email sent successfully');
+          
+          await client.close();
+        }
+        
+        sendVerificationEmail().catch(console.error);
+        "
+    
+    - name: Close issue
+      uses: peter-evans/close-issue@v2
+      with:
+        comment: Verification email sent successfully!
+
+  verify-email-code:
+    if: contains(github.event.issue.title, 'Verify Email Code')
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: npm install mongodb
+    
+    - name: Verify email code
+      env:
+        MONGO_URI: ${{ secrets.MONGO_URI }}
+        ISSUE_BODY: ${{ github.event.issue.body }}
+      run: |
+        node -e "
+        const { MongoClient } = require('mongodb');
+        const fs = require('fs');
+        
+        async function verifyEmailCode() {
+          const issueBody = process.env.ISSUE_BODY;
+          const data = JSON.parse(issueBody);
+          
+          const client = new MongoClient(process.env.MONGO_URI);
+          await client.connect();
+          const db = client.db('mypetid');
+          
+          // Check verification code
+          const verification = await db.collection('email_verification').findOne({
+            username: data.username,
+            code: data.code,
+            expiresAt: { \$gt: new Date().toISOString() }
+          });
+          
+          if (!verification) {
+            throw new Error('Invalid or expired verification code');
+          }
+          
+          // Update user as verified
+          await db.collection('users').updateOne(
+            { username: data.username },
+            { \$set: { emailVerified: true, updatedAt: new Date().toISOString() } }
+          );
+          
+          // Remove verification code
+          await db.collection('email_verification').deleteOne({ _id: verification._id });
+          
+          // Update local JSON file
+          const users = JSON.parse(fs.readFileSync('data/users.json', 'utf8'));
+          const userIndex = users.findIndex(u => u.username === data.username);
+          if (userIndex >= 0) {
+            users[userIndex].emailVerified = true;
+            users[userIndex].updatedAt = new Date().toISOString();
+            fs.writeFileSync('data/users.json', JSON.stringify(users, null, 2));
+          }
+          
+          console.log('Email verified successfully');
+          
+          await client.close();
+        }
+        
+        verifyEmailCode().catch(console.error);
+        "
+    
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add data/users.json
+        git diff --staged --quiet || git commit -m "Verify user email"
+        git push
+    
+    - name: Close issue
+      uses: peter-evans/close-issue@v2
+      with:
+        comment: Email verified successfully!

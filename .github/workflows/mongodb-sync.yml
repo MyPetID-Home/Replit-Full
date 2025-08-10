@@ -1,0 +1,57 @@
+name: MongoDB Data Sync
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 */6 * * *' # Every 6 hours
+  workflow_dispatch:
+
+jobs:
+  sync-to-mongodb:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: npm install mongodb
+    
+    - name: Sync data to MongoDB
+      env:
+        MONGO_URI: ${{ secrets.MONGO_URI }}
+      run: node push-to-mongo.js
+
+  pull-from-mongodb:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: npm install mongodb
+    
+    - name: Pull data from MongoDB
+      env:
+        MONGO_URI: ${{ secrets.MONGO_URI }}
+      run: node pull-from-mongo.js
+    
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add data/
+        git diff --staged --quiet || git commit -m "Auto-sync data from MongoDB"
+        git push

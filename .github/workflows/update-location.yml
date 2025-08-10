@@ -1,0 +1,105 @@
+name: Update Location Data
+on:
+  issue_comment:
+    types: [created]
+  issues:
+    types: [opened]
+
+jobs:
+  update-location:
+    if: contains(github.event.issue.title, 'Location Update') || contains(github.event.comment.body, '/update-location')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Location Data
+        id: extract
+        run: |
+          # Extract data from issue body or comment
+          if [ "${{ github.event_name }}" == "issues" ]; then
+            BODY="${{ github.event.issue.body }}"
+          else
+            BODY="${{ github.event.comment.body }}"
+          fi
+          
+          echo "Extracting location data from: $BODY"
+          
+          # Parse location data
+          NFC_TAG=$(echo "$BODY" | grep -o 'NFC Tag: [^[:space:]]*' | cut -d' ' -f3)
+          LATITUDE=$(echo "$BODY" | grep -o 'Latitude: [0-9.-]*' | cut -d' ' -f2)
+          LONGITUDE=$(echo "$BODY" | grep -o 'Longitude: [0-9.-]*' | cut -d' ' -f2)
+          DEVICE=$(echo "$BODY" | grep -o 'Device: [^[:space:]]*' | cut -d' ' -f2- | head -1)
+          TIMESTAMP=$(echo "$BODY" | grep -o 'Timestamp: [^[:space:]]*' | cut -d' ' -f2)
+          
+          # Validate required fields
+          if [ -z "$NFC_TAG" ] || [ -z "$LATITUDE" ] || [ -z "$LONGITUDE" ]; then
+            echo "Error: Missing required location data"
+            exit 1
+          fi
+          
+          echo "nfc_tag=$NFC_TAG" >> $GITHUB_OUTPUT
+          echo "latitude=$LATITUDE" >> $GITHUB_OUTPUT
+          echo "longitude=$LONGITUDE" >> $GITHUB_OUTPUT
+          echo "device=${DEVICE:-Unknown}" >> $GITHUB_OUTPUT
+          echo "timestamp=${TIMESTAMP:-$(date -Iseconds)}" >> $GITHUB_OUTPUT
+
+      - name: Update Location Data
+        run: |
+          # Create location entry
+          LOCATION_ID=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 24 | head -n 1)
+          
+          # Create location object
+          cat > temp_location.json << EOF
+          {
+            "_id": "$LOCATION_ID",
+            "nfcTagId": "${{ steps.extract.outputs.nfc_tag }}",
+            "latitude": ${{ steps.extract.outputs.latitude }},
+            "longitude": ${{ steps.extract.outputs.longitude }},
+            "deviceName": "${{ steps.extract.outputs.device }}",
+            "timestamp": "${{ steps.extract.outputs.timestamp }}",
+            "active": true
+          }
+          EOF
+          
+          # Update locations.json
+          if [ ! -f data/locations.json ]; then
+            echo "[]" > data/locations.json
+          fi
+          
+          # Add new location to array
+          jq ". += [$(cat temp_location.json)]" data/locations.json > temp_locations.json
+          mv temp_locations.json data/locations.json
+          
+          # Clean up
+          rm temp_location.json
+          
+          echo "Location data updated for NFC tag: ${{ steps.extract.outputs.nfc_tag }}"
+
+      - name: Sync to MongoDB
+        run: |
+          npm install mongodb
+          node push-to-mongo.js
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+
+      - name: Commit Changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add data/locations.json
+          git commit -m "Update location data for NFC tag ${{ steps.extract.outputs.nfc_tag }}" || echo "No changes to commit"
+          git push || echo "No changes to push"
+
+      - name: Comment Success
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ Location data updated successfully!\n\nNFC Tag: ${{ steps.extract.outputs.nfc_tag }}\nCoordinates: ${{ steps.extract.outputs.latitude }}, ${{ steps.extract.outputs.longitude }}\nDevice: ${{ steps.extract.outputs.device }}\nTimestamp: ${{ steps.extract.outputs.timestamp }}'
+            })

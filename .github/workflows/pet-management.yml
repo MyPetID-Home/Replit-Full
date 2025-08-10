@@ -1,0 +1,88 @@
+name: Pet Management
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  save-pet-data:
+    if: contains(github.event.issue.title, 'Save Pet Data')
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: npm install mongodb uuid
+    
+    - name: Process pet data
+      env:
+        MONGO_URI: ${{ secrets.MONGO_URI }}
+        ISSUE_BODY: ${{ github.event.issue.body }}
+      run: |
+        node -e "
+        const { MongoClient } = require('mongodb');
+        const { v4: uuidv4 } = require('uuid');
+        const fs = require('fs');
+        
+        async function savePetData() {
+          const issueBody = process.env.ISSUE_BODY;
+          const petData = JSON.parse(issueBody);
+          
+          const client = new MongoClient(process.env.MONGO_URI);
+          await client.connect();
+          const db = client.db('mypetid');
+          
+          // Generate ID if not provided
+          if (!petData._id) {
+            petData._id = uuidv4();
+          }
+          
+          // Add timestamps
+          petData.updatedAt = new Date().toISOString();
+          if (!petData.createdAt) {
+            petData.createdAt = new Date().toISOString();
+          }
+          
+          // Save to MongoDB
+          await db.collection('dogs').replaceOne(
+            { _id: petData._id },
+            petData,
+            { upsert: true }
+          );
+          
+          console.log('Pet data saved successfully');
+          
+          // Update local JSON file
+          const dogs = JSON.parse(fs.readFileSync('data/dogs.json', 'utf8'));
+          const existingIndex = dogs.findIndex(d => d._id === petData._id);
+          if (existingIndex >= 0) {
+            dogs[existingIndex] = petData;
+          } else {
+            dogs.push(petData);
+          }
+          fs.writeFileSync('data/dogs.json', JSON.stringify(dogs, null, 2));
+          
+          await client.close();
+        }
+        
+        savePetData().catch(console.error);
+        "
+    
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add data/dogs.json
+        git diff --staged --quiet || git commit -m "Update pet data"
+        git push
+    
+    - name: Close issue
+      uses: peter-evans/close-issue@v2
+      with:
+        comment: Pet data saved successfully!

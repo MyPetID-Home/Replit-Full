@@ -1,0 +1,389 @@
+name: Manage Pets
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - create
+          - update
+          - delete
+      petId:
+        description: 'Pet ID (for update/delete)'
+        required: false
+        type: string
+      ownerUsername:
+        description: 'Owner Username'
+        required: true
+        type: string
+
+jobs:
+  manage-pets:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.issue.pull_request == null && (contains(github.event.comment.body, 'PetId:') || github.event_name == 'workflow_dispatch') }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+
+
+      - name: Extract pet data
+        id: extract
+        run: |
+          if [ "${{ github.event_name }}" = "issue_comment" ]; then
+            echo '${{ github.event.comment.body }}' > comment.txt
+            PET_ID=$(grep -o 'PetId:[^ ]*' comment.txt | cut -d':' -f2 || echo "")
+            OWNER_ID=$(grep -o 'OwnerId:[^ ]*' comment.txt | cut -d':' -f2 || echo "")
+            ACTION=$(grep -o 'Action:[^ ]*' comment.txt | cut -d':' -f2 || echo "create")
+            
+            # Extract pet data if present
+            if grep -q 'Data:' comment.txt; then
+              PET_DATA=$(grep -o 'Data:{.*}' comment.txt | sed 's/Data://')
+            else
+              PET_DATA=""
+            fi
+          else
+            PET_ID="${{ github.event.inputs.petId }}"
+            OWNER_USERNAME="${{ github.event.inputs.ownerUsername }}"
+            ACTION="${{ github.event.inputs.action }}"
+            PET_DATA=""
+          fi
+          
+          echo "PET_ID=$PET_ID" >> $GITHUB_ENV
+          echo "OWNER_ID=$OWNER_ID" >> $GITHUB_ENV
+          echo "ACTION=$ACTION" >> $GITHUB_ENV
+          echo "PET_DATA=$PET_DATA" >> $GITHUB_ENV
+
+      - name: Create data directories
+        run: |
+          mkdir -p data
+          mkdir -p pet-profiles
+
+      - name: Process pet management
+        run: |
+          node -e '
+            const fs = require("fs");
+            const crypto = require("crypto");
+            
+            const petId = process.env.PET_ID;
+            const ownerId = process.env.OWNER_ID;
+            const action = process.env.ACTION;
+            const petDataStr = process.env.PET_DATA;
+            
+            console.log(`Processing pet ${action} for ID: ${petId}`);
+            
+            // Load existing pets
+            let pets = [];
+            if (fs.existsSync("data/dogs.json")) {
+              try {
+                pets = JSON.parse(fs.readFileSync("data/dogs.json", "utf8"));
+              } catch (error) {
+                console.error("Error reading dogs.json:", error);
+                pets = [];
+              }
+            }
+            
+            // Load users to get owner information
+            let users = [];
+            if (fs.existsSync("data/users.json")) {
+              try {
+                users = JSON.parse(fs.readFileSync("data/users.json", "utf8"));
+              } catch (error) {
+                console.error("Error reading users.json:", error);
+                users = [];
+              }
+            }
+            
+            const owner = users.find(u => u._id === ownerId);
+            if (!owner) {
+              console.error("Owner not found");
+              process.exit(1);
+            }
+            
+            if (action === "create") {
+              let petData = {};
+              if (petDataStr) {
+                try {
+                  petData = JSON.parse(petDataStr);
+                } catch (error) {
+                  console.error("Invalid pet data JSON");
+                  process.exit(1);
+                }
+              }
+              
+              const newPet = {
+                _id: petId || crypto.randomUUID(),
+                name: petData.name || "Unnamed Pet",
+                nfcTagId: petData.nfcTagId || `NFC-${Date.now()}`,
+                description: petData.description || "",
+                age: petData.age || "",
+                breed: petData.breed || "",
+                weight: petData.weight || "",
+                sex: petData.sex || "",
+                coat: petData.coat || "",
+                coatColor: petData.coatColor || "",
+                eyeColor: petData.eyeColor || "",
+                neutered: petData.neutered || "",
+                personality: petData.personality || "",
+                loves: petData.loves || "",
+                routine: petData.routine || "",
+                training: petData.training || "",
+                quirks: petData.quirks || "",
+                medicalInfo: petData.medicalInfo || "",
+                photoUrl: petData.photoUrl || "",
+                ownerId: ownerId,
+                ownerUsername: owner.username,
+                ownerName: owner.name,
+                ownerEmail: owner.email,
+                ownerPhone: owner.phone,
+                isActive: true,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              };
+              
+              pets.push(newPet);
+              
+              // Create individual pet profile
+              const petProfileDir = `pet-profiles/${newPet.nfcTagId}`;
+              if (!fs.existsSync(petProfileDir)) {
+                fs.mkdirSync(petProfileDir, { recursive: true });
+              }
+              
+              const petProfileData = {
+                id: newPet._id,
+                name: newPet.name,
+                nfcTagId: newPet.nfcTagId,
+                description: newPet.description,
+                age: newPet.age,
+                breed: newPet.breed,
+                weight: newPet.weight,
+                sex: newPet.sex,
+                personality: newPet.personality,
+                medicalInfo: newPet.medicalInfo,
+                photoUrl: newPet.photoUrl,
+                owner: {
+                  name: owner.name,
+                  username: owner.username,
+                  email: owner.email,
+                  phone: owner.phone
+                },
+                profileUrl: `/pet-profiles/${newPet.nfcTagId}`,
+                createdAt: newPet.createdAt,
+                lastUpdated: newPet.updatedAt
+              };
+              
+              fs.writeFileSync(`${petProfileDir}/profile.json`, JSON.stringify(petProfileData, null, 2));
+              
+              // Create pet profile HTML
+              const petHtmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${newPet.name} - MyPetID Profile</title>
+    <meta name="description" content="MyPetID profile for ${newPet.name}. Contact owner if found.">
+    <link rel="stylesheet" href="../../styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="pet-profile-header">
+            <h1>🐕 ${newPet.name}</h1>
+            <p class="nfc-tag">NFC Tag: ${newPet.nfcTagId}</p>
+        </div>
+        
+        <div class="pet-profile-content">
+            ${newPet.photoUrl ? `<img src="${newPet.photoUrl}" alt="${newPet.name}" class="pet-photo">` : ""}
+            
+            <div class="pet-info">
+                <h2>About ${newPet.name}</h2>
+                <p>${newPet.description || "No description available."}</p>
+                
+                <div class="pet-details">
+                    <div class="detail-item">
+                        <strong>Age:</strong> ${newPet.age || "Unknown"}
+                    </div>
+                    <div class="detail-item">
+                        <strong>Breed:</strong> ${newPet.breed || "Unknown"}
+                    </div>
+                    <div class="detail-item">
+                        <strong>Weight:</strong> ${newPet.weight || "Unknown"}
+                    </div>
+                    <div class="detail-item">
+                        <strong>Sex:</strong> ${newPet.sex || "Unknown"}
+                    </div>
+                </div>
+                
+                ${newPet.personality ? `
+                <div class="pet-section">
+                    <h3>Personality</h3>
+                    <p>${newPet.personality}</p>
+                </div>
+                ` : ""}
+                
+                ${newPet.medicalInfo ? `
+                <div class="pet-section">
+                    <h3>Medical Information</h3>
+                    <p>${newPet.medicalInfo}</p>
+                </div>
+                ` : ""}
+                
+                <div class="pet-section">
+                    <h3>🚨 Found This Pet?</h3>
+                    <p>Please contact the owner immediately:</p>
+                    <div class="contact-info">
+                        <p><strong>Owner:</strong> ${owner.name}</p>
+                        <p><strong>Email:</strong> ${owner.email}</p>
+                        ${owner.phone ? `<p><strong>Phone:</strong> ${owner.phone}</p>` : ""}
+                    </div>
+                    <button onclick="reportFound()" class="btn btn-success">Report Found</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function reportFound() {
+            alert("Thank you for finding ${newPet.name}! The owner has been notified.");
+            // In a real implementation, this would create a GitHub issue
+            console.log("Pet found report for ${newPet.name}");
+        }
+    </script>
+</body>
+</html>`;
+              
+              fs.writeFileSync(`${petProfileDir}/index.html`, petHtmlContent);
+              
+              console.log(`Pet created successfully: ${newPet.name} (${newPet.nfcTagId})`);
+              
+            } else if (action === "update") {
+              const petIndex = pets.findIndex(p => p._id === petId);
+              if (petIndex === -1) {
+                console.error("Pet not found");
+                process.exit(1);
+              }
+              
+              let petData = {};
+              if (petDataStr) {
+                try {
+                  petData = JSON.parse(petDataStr);
+                } catch (error) {
+                  console.error("Invalid pet data JSON");
+                  process.exit(1);
+                }
+              }
+              
+              // Update pet data
+              pets[petIndex] = {
+                ...pets[petIndex],
+                ...petData,
+                updatedAt: new Date().toISOString()
+              };
+              
+              console.log(`Pet updated successfully: ${pets[petIndex].name}`);
+              
+            } else if (action === "delete") {
+              const petIndex = pets.findIndex(p => p._id === petId);
+              if (petIndex === -1) {
+                console.error("Pet not found");
+                process.exit(1);
+              }
+              
+              const pet = pets[petIndex];
+              pets.splice(petIndex, 1);
+              
+              // Remove pet profile directory
+              const petProfileDir = `pet-profiles/${pet.nfcTagId}`;
+              if (fs.existsSync(petProfileDir)) {
+                fs.rmSync(petProfileDir, { recursive: true, force: true });
+              }
+              
+              console.log(`Pet deleted successfully: ${pet.name}`);
+            }
+            
+            // Save pets
+            fs.writeFileSync("data/dogs.json", JSON.stringify(pets, null, 2));
+            
+            // Update owner profile pets list
+            const ownerProfileDir = `profiles/${owner.username}`;
+            if (fs.existsSync(ownerProfileDir)) {
+              const ownerPets = pets.filter(p => p.ownerId === ownerId);
+              fs.writeFileSync(`${ownerProfileDir}/pets.json`, JSON.stringify(ownerPets, null, 2));
+            }
+            
+            console.log(`Pet management completed. Action: ${action}`);
+          '
+
+      - name: Update statistics
+        run: |
+          node -e '
+            const fs = require("fs");
+            
+            // Load pets
+            let pets = [];
+            if (fs.existsSync("data/dogs.json")) {
+              try {
+                pets = JSON.parse(fs.readFileSync("data/dogs.json", "utf8"));
+              } catch (error) {
+                pets = [];
+              }
+            }
+            
+            // Generate pet statistics
+            const stats = {
+              totalPets: pets.length,
+              activePets: pets.filter(p => p.isActive).length,
+              petsByBreed: {},
+              petsByOwner: {},
+              lastUpdated: new Date().toISOString()
+            };
+            
+            pets.forEach(pet => {
+              // Count by breed
+              const breed = pet.breed || "Unknown";
+              stats.petsByBreed[breed] = (stats.petsByBreed[breed] || 0) + 1;
+              
+              // Count by owner
+              const owner = pet.ownerUsername || "Unknown";
+              stats.petsByOwner[owner] = (stats.petsByOwner[owner] || 0) + 1;
+            });
+            
+            fs.writeFileSync("data/pet_stats.json", JSON.stringify(stats, null, 2));
+            
+            console.log("Pet statistics updated:");
+            console.log(JSON.stringify(stats, null, 2));
+          '
+
+      - name: Sync to MongoDB
+        run: |
+          npm install mongodb
+          node push-to-mongo.js
+        env:
+          MONGO_URI: ${{ secrets.MONGODB_URI }}
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/ pet-profiles/ profiles/
+          git diff --cached --quiet || git commit -m "Pet management: $ACTION for pet $PET_ID"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cleanup
+        run: |
+          rm -f comment.txt
+          echo "Pet management completed successfully"

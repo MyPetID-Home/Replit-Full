@@ -1,0 +1,298 @@
+name: Register User
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      username:
+        description: 'Username'
+        required: true
+        type: string
+      email:
+        description: 'Email'
+        required: true
+        type: string
+      patreonId:
+        description: 'Patreon ID'
+        required: true
+        type: string
+
+jobs:
+  register-user:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.issue.pull_request == null && (contains(github.event.comment.body, 'register') || github.event_name == 'workflow_dispatch') }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+
+
+      - name: Extract user data
+        id: extract
+        run: |
+          if [ "${{ github.event_name }}" = "issue_comment" ]; then
+            echo '${{ github.event.comment.body }}' > comment.txt
+            USERNAME=$(grep -o 'Username:[^ ]*' comment.txt | cut -d':' -f2 || echo "")
+            EMAIL=$(grep -o 'Email:[^ ]*' comment.txt | cut -d':' -f2 || echo "")
+            PATREON_ID=$(grep -o 'PatreonId:[^ ]*' comment.txt | cut -d':' -f2 || echo "")
+            NAME=$(grep -o 'Name:[^ ]*' comment.txt | cut -d':' -f2 || echo "")
+            PHONE=$(grep -o 'Phone:[^ ]*' comment.txt | cut -d':' -f2 || echo "")
+          else
+            USERNAME="${{ github.event.inputs.username }}"
+            EMAIL="${{ github.event.inputs.email }}"
+            PATREON_ID="${{ github.event.inputs.patreonId }}"
+            NAME=""
+            PHONE=""
+          fi
+          
+          echo "USERNAME=$USERNAME" >> $GITHUB_ENV
+          echo "EMAIL=$EMAIL" >> $GITHUB_ENV
+          echo "PATREON_ID=$PATREON_ID" >> $GITHUB_ENV
+          echo "NAME=$NAME" >> $GITHUB_ENV
+          echo "PHONE=$PHONE" >> $GITHUB_ENV
+
+      - name: Create data directories
+        run: |
+          mkdir -p data
+          mkdir -p profiles
+
+      - name: Register user
+        run: |
+          node -e '
+            const fs = require("fs");
+            const crypto = require("crypto");
+            
+            const username = process.env.USERNAME;
+            const email = process.env.EMAIL;
+            const patreonId = process.env.PATREON_ID;
+            const name = process.env.NAME || username;
+            const phone = process.env.PHONE || "";
+            
+            if (!username || !email || !patreonId) {
+              console.error("Missing required fields");
+              process.exit(1);
+            }
+            
+            // Load existing users
+            let users = [];
+            if (fs.existsSync("data/users.json")) {
+              try {
+                users = JSON.parse(fs.readFileSync("data/users.json", "utf8"));
+              } catch (error) {
+                console.error("Error reading users.json:", error);
+                users = [];
+              }
+            }
+            
+            // Check if user already exists
+            const existingUser = users.find(u => u.email === email || u.username === username);
+            if (existingUser) {
+              console.log("User already exists");
+              process.exit(0);
+            }
+            
+            // Create new user
+            const newUser = {
+              _id: crypto.randomUUID(),
+              username: username,
+              email: email,
+              password: crypto.createHash("sha256").update("temp_password_" + Date.now()).digest("hex"),
+              name: name,
+              phone: phone,
+              patreonId: patreonId,
+              patreonTier: "basic",
+              patreonVerified: false,
+              isActive: true,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+            
+            users.push(newUser);
+            
+            // Save users
+            fs.writeFileSync("data/users.json", JSON.stringify(users, null, 2));
+            
+            // Create user profile directory
+            const profileDir = `profiles/${username}`;
+            if (!fs.existsSync(profileDir)) {
+              fs.mkdirSync(profileDir, { recursive: true });
+            }
+            
+            // Create profile data
+            const profileData = {
+              username: username,
+              name: name,
+              email: email,
+              patreonVerified: false,
+              patreonTier: "basic",
+              joinDate: newUser.createdAt,
+              profileUrl: `/${username}`,
+              pets: []
+            };
+            
+            fs.writeFileSync(`${profileDir}/profile.json`, JSON.stringify(profileData, null, 2));
+            
+            // Create user profile HTML
+            const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${name} - MyPetID Profile</title>
+    <meta name="description" content="MyPetID profile for ${name}. View pet profiles and contact information.">
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="profile-header">
+            <h1>${name}</h1>
+            <p class="username">@${username}</p>
+            <p class="join-date">Joined: ${new Date(newUser.createdAt).toLocaleDateString()}</p>
+        </div>
+        
+        <div class="profile-content">
+            <div class="pets-section">
+                <h2>Pet Profiles</h2>
+                <div id="petsContainer">
+                    <p>No pets registered yet.</p>
+                </div>
+            </div>
+            
+            <div class="contact-section">
+                <h2>Contact Information</h2>
+                <p>Contact available through MyPetID system when pet is found.</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Load pet profiles dynamically
+        fetch("./pets.json")
+            .then(response => response.json())
+            .then(pets => {
+                const container = document.getElementById("petsContainer");
+                if (pets.length > 0) {
+                    container.innerHTML = pets.map(pet => \`
+                        <div class="pet-card">
+                            <h3>\${pet.name}</h3>
+                            <p>\${pet.description || "No description"}</p>
+                            <a href="/pet?id=\${pet.id}" class="btn">View Profile</a>
+                        </div>
+                    \`).join("");
+                }
+            })
+            .catch(error => {
+                console.error("Error loading pets:", error);
+            });
+    </script>
+</body>
+</html>`;
+            
+            fs.writeFileSync(`${profileDir}/index.html`, htmlContent);
+            
+            // Create empty pets file for user
+            fs.writeFileSync(`${profileDir}/pets.json`, JSON.stringify([], null, 2));
+            
+            console.log(`User registered successfully: ${username}`);
+            console.log(`Profile created at: ${profileDir}`);
+          '
+
+      - name: Trigger Patreon verification
+        run: |
+          node -e '
+            const fs = require("fs");
+            
+            const username = process.env.USERNAME;
+            const email = process.env.EMAIL;
+            const patreonId = process.env.PATREON_ID;
+            
+            // Create verification request
+            const verificationRequest = {
+              username: username,
+              email: email,
+              patreonId: patreonId,
+              timestamp: new Date().toISOString(),
+              status: "pending"
+            };
+            
+            let verificationQueue = [];
+            if (fs.existsSync("data/patreon_verification_queue.json")) {
+              try {
+                verificationQueue = JSON.parse(fs.readFileSync("data/patreon_verification_queue.json", "utf8"));
+              } catch (error) {
+                verificationQueue = [];
+              }
+            }
+            
+            verificationQueue.push(verificationRequest);
+            fs.writeFileSync("data/patreon_verification_queue.json", JSON.stringify(verificationQueue, null, 2));
+            
+            console.log("Patreon verification request queued");
+          '
+
+      - name: Update statistics
+        run: |
+          node -e '
+            const fs = require("fs");
+            
+            // Load users
+            let users = [];
+            if (fs.existsSync("data/users.json")) {
+              try {
+                users = JSON.parse(fs.readFileSync("data/users.json", "utf8"));
+              } catch (error) {
+                users = [];
+              }
+            }
+            
+            // Generate statistics
+            const stats = {
+              totalUsers: users.length,
+              activeUsers: users.filter(u => u.isActive).length,
+              patreonUsers: users.filter(u => u.patreonVerified).length,
+              registrationsByMonth: {},
+              lastUpdated: new Date().toISOString()
+            };
+            
+            // Count registrations by month
+            users.forEach(user => {
+              const month = new Date(user.createdAt).toISOString().slice(0, 7);
+              stats.registrationsByMonth[month] = (stats.registrationsByMonth[month] || 0) + 1;
+            });
+            
+            fs.writeFileSync("data/user_stats.json", JSON.stringify(stats, null, 2));
+            
+            console.log("Statistics updated:");
+            console.log(JSON.stringify(stats, null, 2));
+          '
+
+      - name: Sync to MongoDB
+        run: |
+          npm install mongodb
+          node push-to-mongo.js
+        env:
+          MONGO_URI: ${{ secrets.MONGODB_URI }}
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/ profiles/
+          git diff --cached --quiet || git commit -m "Register new user: $USERNAME"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cleanup
+        run: |
+          rm -f comment.txt
+          echo "Registration completed successfully"

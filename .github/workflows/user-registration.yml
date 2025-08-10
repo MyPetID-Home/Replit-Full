@@ -1,0 +1,90 @@
+name: User Registration
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  register-user:
+    if: contains(github.event.issue.title, 'Register User')
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: npm install mongodb uuid
+    
+    - name: Process user registration
+      env:
+        MONGO_URI: ${{ secrets.MONGO_URI }}
+        ISSUE_BODY: ${{ github.event.issue.body }}
+      run: |
+        node -e "
+        const { MongoClient } = require('mongodb');
+        const { v4: uuidv4 } = require('uuid');
+        const fs = require('fs');
+        
+        async function registerUser() {
+          const issueBody = process.env.ISSUE_BODY;
+          const userData = JSON.parse(issueBody);
+          
+          const client = new MongoClient(process.env.MONGO_URI);
+          await client.connect();
+          const db = client.db('mypetid');
+          
+          // Check if user already exists
+          const existingUser = await db.collection('users').findOne({ email: userData.email });
+          if (existingUser) {
+            console.log('User already exists');
+            return;
+          }
+          
+          // Create new user
+          const newUser = {
+            _id: uuidv4(),
+            username: userData.username,
+            email: userData.email,
+            password: userData.password,
+            name: userData.name,
+            phone: userData.phone,
+            patreonId: userData.patreonId,
+            patreonTier: userData.patreonTier || 'basic',
+            patreonVerified: false,
+            emailVerified: false,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          
+          await db.collection('users').insertOne(newUser);
+          console.log('User registered successfully');
+          
+          // Update local JSON file
+          const users = JSON.parse(fs.readFileSync('data/users.json', 'utf8'));
+          users.push(newUser);
+          fs.writeFileSync('data/users.json', JSON.stringify(users, null, 2));
+          
+          await client.close();
+        }
+        
+        registerUser().catch(console.error);
+        "
+    
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add data/users.json
+        git diff --staged --quiet || git commit -m "Add new user registration"
+        git push
+    
+    - name: Close issue
+      uses: peter-evans/close-issue@v2
+      with:
+        comment: User registration processed successfully!

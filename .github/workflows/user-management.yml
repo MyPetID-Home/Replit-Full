@@ -1,0 +1,257 @@
+name: User Management
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'sync'
+        type: choice
+        options:
+        - sync
+        - create_user
+        - update_user
+        - delete_user
+
+jobs:
+  user-management:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.issue.pull_request == null && (contains(github.event.comment.body, '/user-action') || github.event_name == 'workflow_dispatch') }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          npm init -y
+          npm install bcrypt uuid validator
+
+      - name: Process user action
+        run: |
+          node -e '
+            const crypto = require("crypto");
+            const fs = require("fs");
+
+            console.log("Processing user management action...");
+
+            // Initialize data directory
+            if (!fs.existsSync("data")) {
+              fs.mkdirSync("data", { recursive: true });
+            }
+
+            // Load existing users
+            let users = [];
+            if (fs.existsSync("data/users.json")) {
+              try {
+                users = JSON.parse(fs.readFileSync("data/users.json", "utf8"));
+              } catch (error) {
+                console.error("Error reading users.json:", error);
+                users = [];
+              }
+            }
+
+            const action = process.env.GITHUB_EVENT_NAME === "workflow_dispatch" 
+              ? process.env.INPUT_ACTION || "sync"
+              : "comment";
+
+            if (action === "comment") {
+              // Extract user data from comment
+              const commentBody = process.env.COMMENT_BODY || "";
+              
+              if (commentBody.includes("/user-action")) {
+                const userIdMatch = commentBody.match(/UserId:([^\\s]+)/);
+                const usernameMatch = commentBody.match(/Username:([^\\s]+)/);
+                const emailMatch = commentBody.match(/Email:([^\\s]+)/);
+                const nameMatch = commentBody.match(/Name:([^\\s]+)/);
+                const phoneMatch = commentBody.match(/Phone:([^\\s]+)/);
+                const addressMatch = commentBody.match(/Address:([^\\s]+)/);
+                const actionMatch = commentBody.match(/Action:([^\\s]+)/);
+
+                const userId = userIdMatch ? userIdMatch[1] : null;
+                const username = usernameMatch ? usernameMatch[1] : null;
+                const email = emailMatch ? emailMatch[1] : null;
+                const name = nameMatch ? nameMatch[1] : null;
+                const phone = phoneMatch ? phoneMatch[1] : null;
+                const address = addressMatch ? addressMatch[1] : null;
+                const userAction = actionMatch ? actionMatch[1] : "create";
+
+                if (userAction === "create" && username && email) {
+                  // Create new user
+                  const newUser = {
+                    _id: userId || crypto.randomUUID(),
+                    username: username,
+                    email: email,
+                    password: crypto.createHash("sha256").update("temporary_password").digest("hex"),
+                    name: name || "",
+                    phone: phone || "",
+                    address: address || "",
+                    patreonId: null,
+                    patreonTier: null,
+                    patreonVerified: false,
+                    isActive: true,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                  };
+
+                  // Check if user already exists
+                  const existingUser = users.find(u => u.email === email || u.username === username);
+                  if (!existingUser) {
+                    users.push(newUser);
+                    console.log(`Created new user: ${username}`);
+                  } else {
+                    console.log(`User already exists: ${username}`);
+                  }
+                } else if (userAction === "update" && userId) {
+                  // Update existing user
+                  const userIndex = users.findIndex(u => u._id === userId);
+                  if (userIndex !== -1) {
+                    if (username) users[userIndex].username = username;
+                    if (email) users[userIndex].email = email;
+                    if (name) users[userIndex].name = name;
+                    if (phone) users[userIndex].phone = phone;
+                    if (address) users[userIndex].address = address;
+                    users[userIndex].updatedAt = new Date().toISOString();
+                    console.log(`Updated user: ${userId}`);
+                  } else {
+                    console.log(`User not found: ${userId}`);
+                  }
+                } else if (userAction === "delete" && userId) {
+                  // Soft delete user
+                  const userIndex = users.findIndex(u => u._id === userId);
+                  if (userIndex !== -1) {
+                    users[userIndex].isActive = false;
+                    users[userIndex].updatedAt = new Date().toISOString();
+                    console.log(`Deactivated user: ${userId}`);
+                  } else {
+                    console.log(`User not found: ${userId}`);
+                  }
+                }
+              }
+            }
+
+            // Auto-generate user profile pages
+            users.filter(user => user.isActive).forEach(user => {
+              const profileDir = `profiles/${user.username}`;
+              if (!fs.existsSync(profileDir)) {
+                fs.mkdirSync(profileDir, { recursive: true });
+              }
+
+              const profileData = {
+                username: user.username,
+                name: user.name || user.username,
+                email: user.email,
+                patreonVerified: user.patreonVerified || false,
+                patreonTier: user.patreonTier || null,
+                joinDate: user.createdAt,
+                profileUrl: `/${user.username}`
+              };
+
+              fs.writeFileSync(
+                `${profileDir}/profile.json`,
+                JSON.stringify(profileData, null, 2)
+              );
+
+              // Generate basic HTML profile page
+              const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${user.name || user.username} - MyPetID Profile</title>
+    <link rel="stylesheet" href="/assets/profile.css">
+</head>
+<body>
+    <div class="profile-container">
+        <h1>${user.name || user.username}</h1>
+        <p>@${user.username}</p>
+        <div class="profile-links">
+            <a href="/pet-profiles/${user.username}">View Pet Profiles</a>
+        </div>
+    </div>
+</body>
+</html>`;
+
+              fs.writeFileSync(`${profileDir}/index.html`, htmlContent);
+            });
+
+            // Save updated users
+            fs.writeFileSync("data/users.json", JSON.stringify(users, null, 2));
+            console.log(`User management completed. Total users: ${users.length}`);
+          '
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          INPUT_ACTION: ${{ github.event.inputs.action }}
+
+      - name: Sync with MongoDB
+        run: |
+          node -e '
+            const fs = require("fs");
+            
+            // This would sync the local JSON with MongoDB
+            // For now, we will prepare the data for MongoDB sync
+            
+            if (fs.existsSync("data/users.json")) {
+              const users = JSON.parse(fs.readFileSync("data/users.json", "utf8"));
+              console.log(`Prepared ${users.length} users for MongoDB sync`);
+              
+              // Create a sync manifest
+              const syncManifest = {
+                timestamp: new Date().toISOString(),
+                users: users.length,
+                action: "user_management_sync"
+              };
+              
+              fs.writeFileSync("data/sync_manifest.json", JSON.stringify(syncManifest, null, 2));
+            }
+          '
+
+      - name: Generate user statistics
+        run: |
+          node -e '
+            const fs = require("fs");
+            
+            if (fs.existsSync("data/users.json")) {
+              const users = JSON.parse(fs.readFileSync("data/users.json", "utf8"));
+              
+              const stats = {
+                totalUsers: users.length,
+                activeUsers: users.filter(u => u.isActive).length,
+                patreonVerified: users.filter(u => u.patreonVerified).length,
+                patreonTiers: users.reduce((acc, user) => {
+                  if (user.patreonTier) {
+                    acc[user.patreonTier] = (acc[user.patreonTier] || 0) + 1;
+                  }
+                  return acc;
+                }, {}),
+                lastUpdated: new Date().toISOString()
+              };
+              
+              fs.writeFileSync("data/user_stats.json", JSON.stringify(stats, null, 2));
+              console.log("User statistics generated:", JSON.stringify(stats, null, 2));
+            }
+          '
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/ profiles/ || true
+          git diff --cached --quiet || git commit -m "Update user management data [skip ci]"
+          git push origin main || echo "No changes to push"
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+      - name: Notify completion
+        run: |
+          echo "User management workflow completed successfully"
+          echo "Users processed and profiles updated"

@@ -1,0 +1,76 @@
+name: Location Tracking
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  update-location:
+    if: contains(github.event.issue.title, 'Update Location')
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: npm install mongodb uuid
+    
+    - name: Process location update
+      env:
+        MONGO_URI: ${{ secrets.MONGO_URI }}
+        ISSUE_BODY: ${{ github.event.issue.body }}
+      run: |
+        node -e "
+        const { MongoClient } = require('mongodb');
+        const { v4: uuidv4 } = require('uuid');
+        const fs = require('fs');
+        
+        async function updateLocation() {
+          const issueBody = process.env.ISSUE_BODY;
+          const locationData = JSON.parse(issueBody);
+          
+          const client = new MongoClient(process.env.MONGO_URI);
+          await client.connect();
+          const db = client.db('mypetid');
+          
+          // Generate ID if not provided
+          if (!locationData._id) {
+            locationData._id = uuidv4();
+          }
+          
+          // Add timestamp
+          locationData.timestamp = new Date().toISOString();
+          
+          // Save to MongoDB
+          await db.collection('locations').insertOne(locationData);
+          
+          console.log('Location data saved successfully');
+          
+          // Update local JSON file
+          const locations = JSON.parse(fs.readFileSync('data/locations.json', 'utf8'));
+          locations.push(locationData);
+          fs.writeFileSync('data/locations.json', JSON.stringify(locations, null, 2));
+          
+          await client.close();
+        }
+        
+        updateLocation().catch(console.error);
+        "
+    
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add data/locations.json
+        git diff --staged --quiet || git commit -m "Update location data"
+        git push
+    
+    - name: Close issue
+      uses: peter-evans/close-issue@v2
+      with:
+        comment: Location data updated successfully!
