@@ -1,0 +1,24 @@
+[
+  {
+    "_id": "5f7794cb-0acd-452e-9d42-c1a2d88dd899",
+    "name": "Max",
+    "nfcTagId": "NFC-1751920776223",
+    "description": "Friendly Labrador mix",
+    "age": "2 years",
+    "breed": "Labrador Mix",
+    "weight": "55 lbs",
+    "sex": "Male",
+    "coat": "Short",
+    "eyeColor": "Brown",
+    "neutered": "Yes",
+    "personality": "Energetic and friendly",
+    "ownerId": "c89dd780-7522-4984-b8d2-d29e4d40abd9",
+    "ownerUsername": "johndoe",
+    "ownerName": "John Doe",
+    "ownerEmail": "john@example.com",
+    "ownerPhone": "+1555123456",
+    "isActive": true,
+    "createdAt": "2025-07-07T20:39:36.224Z",
+    "updatedAt": "2025-07-07T20:39:36.224Z"
+  }
+]
